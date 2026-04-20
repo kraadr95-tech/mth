@@ -66,7 +66,31 @@ body {
   pointer-events: none; opacity: .5;
 }
 
-/* ── NAVBAR ─────────────────────────────────────── */
+/* nav gif logo */
+.nav__logo-gif {
+  height: 48px;
+  width: auto;
+  filter: drop-shadow(0 0 10px var(--g-dim));
+}
+
+/* hero animated logo */
+.hero__logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.hero__logo-gif {
+  height: clamp(100px, 18vw, 160px);
+  width: auto;
+  filter: drop-shadow(0 0 30px var(--g-glow)) drop-shadow(0 0 60px rgba(57,255,20,.15));
+  transition: filter .4s;
+}
+.hero__logo-gif:hover {
+  filter: drop-shadow(0 0 40px var(--g-glow)) drop-shadow(0 0 80px rgba(57,255,20,.25));
+}
+
+
 .nav {
   position: fixed; top: 0; left: 0; right: 0;
   z-index: 100;
