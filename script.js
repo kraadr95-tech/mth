@@ -112,42 +112,84 @@
 })();
 
 
-/* ── COUNTER ANIMATION ───────────────────────────── */
+/* ── LIVE DISCORD STATS ──────────────────────────── */
 (function () {
-  const nums = document.querySelectorAll('.stat__num[data-target]');
+  const INVITE = 'motohub-polska-spolecznosc-motocyklowa-1191618604026826844';
+  const API    = `https://discord.com/api/v9/invites/${INVITE}?with_counts=true`;
 
-  const run = (el, target) => {
-    const dur = 1800;
-    const t0  = performance.now();
-    const tick = (now) => {
-      const p = Math.min((now - t0) / dur, 1);
+  const elMembers = document.getElementById('stat-members');
+  const elOnline  = document.getElementById('stat-online');
+
+  function animateCount(el, from, to, duration) {
+    const start = performance.now();
+    const tick  = (now) => {
+      const p    = Math.min((now - start) / duration, 1);
       const ease = 1 - Math.pow(1 - p, 4);
-      el.textContent = Math.round(ease * target).toLocaleString('pl-PL');
+      el.textContent = Math.round(from + (to - from) * ease).toLocaleString('pl-PL');
       if (p < 1) requestAnimationFrame(tick);
-      else el.textContent = target.toLocaleString('pl-PL');
     };
     requestAnimationFrame(tick);
-  };
-
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          run(e.target, parseInt(e.target.dataset.target, 10));
-          io.unobserve(e.target);
-        }
-      });
-    }, { threshold: .6 });
-    nums.forEach(el => io.observe(el));
-  } else {
-    nums.forEach(el => {
-      el.textContent = parseInt(el.dataset.target, 10).toLocaleString('pl-PL');
-    });
   }
+
+  async function fetchStats() {
+    try {
+      const res  = await fetch(API);
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+
+      const members = data.approximate_member_count;
+      const online  = data.approximate_presence_count;
+
+      if (elMembers && members) {
+        const prev = parseInt(elMembers.textContent.replace(/\s/g, '')) || 1482;
+        animateCount(elMembers, prev, members, 1800);
+      }
+
+      if (elOnline && online) {
+        const prev = parseInt(elOnline.textContent) || 0;
+        animateCount(elOnline, prev, online, 1800);
+      }
+    } catch (err) {
+      // API niedostępne — zostają wartości domyślne
+      console.warn('Discord API error:', err);
+      if (elMembers && elMembers.textContent === '1482') {
+        animateCount(elMembers, 0, 1482, 1800);
+      }
+    }
+  }
+
+  // Pobierz od razu po załadowaniu
+  fetchStats();
+
+  // Odświeżaj co 5 minut
+  setInterval(fetchStats, 5 * 60 * 1000);
 })();
 
 
-/* ── TILE 3D TILT ────────────────────────────────── */
+
+
+
+/* ── STATIC COUNTER (kanały) ─────────────────────── */
+(function () {
+  const nums = document.querySelectorAll('.stat__num[data-target]');
+  const run = (el, target) => {
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - t0) / 1600, 1);
+      el.textContent = Math.round((1 - Math.pow(1 - p, 4)) * target);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { run(e.target, parseInt(e.target.dataset.target)); io.unobserve(e.target); }
+    });
+  }, { threshold: .6 });
+  nums.forEach(el => io.observe(el));
+})();
+
+
 (function () {
   if (window.matchMedia('(pointer: coarse)').matches) return;
 
