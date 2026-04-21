@@ -2,8 +2,8 @@ name: Fetch Discord Events
 
 on:
   schedule:
-    - cron: '0 * * * *'  # co godzinę
-  workflow_dispatch:       # ręczne uruchomienie w zakładce Actions
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   fetch:
@@ -20,104 +20,166 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
         run: |
           python3 - <<'PYEOF'
-          import urllib.request, json, os, re
+import urllib.request, urllib.error, json, os, re
+from datetime import datetime
 
-          TOKEN      = os.environ["DISCORD_TOKEN"]
-          CHANNEL_ID = "1494773504615256114"
+TOKEN      = os.environ["DISCORD_TOKEN"]
+GUILD_ID   = "1191618604026826844"
+CHANNEL_ID = "1494773504615256114"
 
-          def discord_get(path):
-              url = f"https://discord.com/api/v10{path}"
-              req = urllib.request.Request(url, headers={
-                  "Authorization": f"Bot {TOKEN}",
-                  "User-Agent": "MotoHubBot/1.0"
-              })
-              with urllib.request.urlopen(req, timeout=15) as r:
-                  return json.loads(r.read())
+def discord_get(path):
+    url = f"https://discord.com/api/v10{path}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bot {TOKEN}",
+        "User-Agent": "MotoHubBot (motohubpolska.pl, 1.0)"
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+            return data
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"  HTTP {e.code} for {path}: {body[:300]}")
+        return None
+    except Exception as e:
+        print(f"  Error for {path}: {e}")
+        return None
 
-          events = []
+print("=== Fetching Discord forum posts ===")
+print(f"Guild: {GUILD_ID}, Channel: {CHANNEL_ID}")
 
-          # 1. Aktywne wątki (forum posts)
-          try:
-              active = discord_get(f"/channels/{CHANNEL_ID}/threads/active")
-              threads = active.get("threads", [])
-          except Exception as e:
-              print(f"Active threads error: {e}")
-              threads = []
+threads = []
 
-          # 2. Zarchiwizowane wątki (starsze posty)
-          try:
-              archived = discord_get(f"/channels/{CHANNEL_ID}/threads/archived/public?limit=10")
-              threads += archived.get("threads", [])
-          except Exception as e:
-              print(f"Archived threads error: {e}")
+# --- 1. Active threads (via guild endpoint) ---
+print("\n[1] Fetching active threads...")
+active = discord_get(f"/guilds/{GUILD_ID}/threads/active")
+if active:
+    all_active = active.get("threads", [])
+    # Filter only threads from our forum channel
+    channel_active = [t for t in all_active if t.get("parent_id") == CHANNEL_ID]
+    print(f"    Total active in guild: {len(all_active)}, in our channel: {len(channel_active)}")
+    threads += channel_active
+else:
+    print("    Failed to fetch active threads")
 
-          # Sortuj po dacie utworzenia (newest first)
-          def thread_ts(t):
-              return t.get("thread_metadata", {}).get("create_timestamp", "") or t.get("id", "0")
+# --- 2. Archived/public threads ---
+print("\n[2] Fetching archived threads...")
+archived = discord_get(f"/channels/{CHANNEL_ID}/threads/archived/public?limit=10")
+if archived:
+    arch_list = archived.get("threads", [])
+    print(f"    Archived threads: {len(arch_list)}")
+    threads += arch_list
+else:
+    print("    Failed to fetch archived threads")
 
-          threads.sort(key=thread_ts, reverse=True)
-          threads = threads[:2]
+print(f"\n[3] Total threads found: {len(threads)}")
 
-          for thread in threads:
-              thread_id = thread["id"]
-              title     = thread.get("name", "")
+if not threads:
+    print("WARNING: No threads found! Check bot permissions:")
+    print("  - Bot must be in the server")
+    print("  - Bot needs VIEW_CHANNEL + READ_MESSAGE_HISTORY")
+    print("  - Channel ID must be correct")
 
-              # Pobierz pierwszą wiadomość wątku (opis/post)
-              img   = ""
-              desc  = ""
-              date  = thread.get("thread_metadata", {}).get("create_timestamp", "")
+# Sort by creation time (newest first)
+def thread_ts(t):
+    ts = t.get("thread_metadata", {}).get("create_timestamp") or ""
+    return ts or t.get("id", "0")
 
-              try:
-                  msgs = discord_get(f"/channels/{thread_id}/messages?limit=1")
-                  if msgs:
-                      msg  = msgs[0]
-                      desc = msg.get("content", "")
-                      date = msg.get("timestamp", date)
+threads.sort(key=thread_ts, reverse=True)
+top_threads = threads[:2]
 
-                      # Zdjęcie z załączników
-                      for att in msg.get("attachments", []):
-                          ct = att.get("content_type", "")
-                          if ct.startswith("image"):
-                              img = att.get("url", "")
-                              break
+events = []
 
-                      # Zdjęcie z embeds
-                      if not img:
-                          for emb in msg.get("embeds", []):
-                              img = (emb.get("image") or emb.get("thumbnail") or {}).get("url", "")
-                              if img:
-                                  break
-              except Exception as e:
-                  print(f"Message fetch error for {thread_id}: {e}")
+for i, thread in enumerate(top_threads):
+    thread_id = thread["id"]
+    title     = thread.get("name", "Brak tytułu")
+    created   = thread.get("thread_metadata", {}).get("create_timestamp", "")
 
-              # Województwo z tytułu (przed myślnikiem/dwukropkiem)
-              region = ""
-              m = re.match(r'^([^:\-–]+?)[\s]*[:\-–]', title)
-              if m:
-                  region = m.group(1).strip()
+    print(f"\n[Thread {i+1}] '{title}' (id: {thread_id})")
 
-              clean_title = re.sub(r'^[^:\-–]+[:\-–]\s*', '', title).strip() if region else title
+    img  = ""
+    desc = ""
+    date = created
 
-              events.append({
-                  "title":       clean_title,
-                  "region":      region,
-                  "description": desc[:120] + ("…" if len(desc) > 120 else ""),
-                  "image":       img,
-                  "date":        date,
-              })
+    # Fetch the FIRST message of the thread (original post)
+    # Discord returns messages newest-first, so we need to page to the oldest
+    # Trick: fetch with after=thread_id-1 (thread snowflake is close to first msg)
+    first_msg_id = str(int(thread_id) - 1)
+    msgs = discord_get(f"/channels/{thread_id}/messages?limit=5&after={first_msg_id}")
 
-          # Zapisz JSON
-          os.makedirs("data", exist_ok=True)
-          with open("data/events.json", "w", encoding="utf-8") as f:
-              json.dump({"updated": __import__('datetime').datetime.utcnow().isoformat(), "events": events}, f, ensure_ascii=False, indent=2)
+    if msgs is None:
+        # Fallback: just fetch recent messages
+        msgs = discord_get(f"/channels/{thread_id}/messages?limit=5")
 
-          print(f"Saved {len(events)} events to data/events.json")
-          PYEOF
+    if msgs:
+        print(f"    Got {len(msgs)} messages")
+        # Take the oldest message in the batch (last item since Discord returns newest first)
+        msg = msgs[-1] if msgs else None
+        if msg:
+            desc = msg.get("content", "")
+            date = msg.get("timestamp", created)
+            print(f"    Content preview: {desc[:80]}")
+
+            # Image from attachments
+            for att in msg.get("attachments", []):
+                ct = att.get("content_type", "")
+                if ct.startswith("image") or att.get("url", "").lower().endswith((".jpg",".jpeg",".png",".gif",".webp")):
+                    img = att.get("url", "")
+                    print(f"    Image from attachment: {img[:60]}")
+                    break
+
+            # Image from embeds
+            if not img:
+                for emb in msg.get("embeds", []):
+                    candidate = (emb.get("image") or emb.get("thumbnail") or {}).get("url", "")
+                    if candidate:
+                        img = candidate
+                        print(f"    Image from embed: {img[:60]}")
+                        break
+
+            # Image from stickers
+            if not img:
+                for sticker in msg.get("sticker_items", []):
+                    sid = sticker.get("id")
+                    if sid:
+                        img = f"https://media.discordapp.net/stickers/{sid}.webp"
+    else:
+        print("    Could not fetch messages")
+
+    # Extract region/voivodeship from title
+    region = ""
+    m = re.match(r'^([A-ZĄĆĘŁŃÓŚŹŻ][^:\-–]{2,25}?)[\s]*[:\-–]', title)
+    if m:
+        region = m.group(1).strip()
+
+    clean_title = re.sub(r'^[^:\-–]+[:\-–]\s*', '', title).strip() if region else title
+    if not clean_title:
+        clean_title = title
+
+    events.append({
+        "title":       clean_title,
+        "region":      region,
+        "description": desc[:150] + ("…" if len(desc) > 150 else ""),
+        "image":       img,
+        "date":        date,
+    })
+    print(f"    Saved: region='{region}', title='{clean_title}', has_img={bool(img)}")
+
+# Write JSON
+os.makedirs("data", exist_ok=True)
+output = {
+    "updated": datetime.utcnow().isoformat() + "Z",
+    "events":  events
+}
+with open("data/events.json", "w", encoding="utf-8") as f:
+    json.dump(output, f, ensure_ascii=False, indent=2)
+
+print(f"\n=== Done: saved {len(events)} events to data/events.json ===")
+PYEOF
 
       - name: Commit data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/events.json
-          git diff --staged --quiet || git commit -m "chore: update discord events [skip ci]"
-          git push
+          git diff --staged --quiet && echo "No changes" || (git commit -m "chore: update discord events [skip ci]" && git push)
