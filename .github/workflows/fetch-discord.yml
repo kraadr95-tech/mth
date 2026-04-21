@@ -18,7 +18,7 @@ jobs:
       - name: Fetch forum posts from Discord
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-        run: python3 .github/fetch_events.py
+        run: python3 fetch_events.py
 
       - name: Commit data
         run: |
