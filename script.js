@@ -171,7 +171,107 @@
 
 
 
-/* ── STATIC COUNTER (kanały) ─────────────────────── */
+/* ── KALENDARZ ZLOTÓW — RSS ──────────────────────── */
+(function () {
+  const RSS_URL  = 'https://gdzienazlot.pl/feed/';
+  const API      = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(RSS_URL)}&count=2`;
+  const container = document.getElementById('cal-events');
+  const card      = document.getElementById('feature-calendar');
+  if (!container || !card) return;
+
+  let loaded = false;
+
+  function formatDate(dateStr) {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return ''; }
+  }
+
+  function extractRegion(title) {
+    // Tytuły mają format "Województwo - Nazwa wydarzenia"
+    const m = title.match(/^([^–\-–]+?)[\s]*[-–]/);
+    return m ? m[1].trim() : '';
+  }
+
+  function stripHtml(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  function renderEvents(items) {
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:12px 0">Brak wydarzeń</p>';
+      return;
+    }
+
+    items.forEach(item => {
+      const region = extractRegion(item.title || '');
+      // Get image: thumbnail from RSS or first <img> in content
+      let imgSrc = item.thumbnail || item.enclosure?.link || '';
+      if (!imgSrc && item.content) {
+        const m = item.content.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (m) imgSrc = m[1];
+      }
+
+      // Clean title — remove region prefix
+      const cleanTitle = region
+        ? (item.title || '').replace(/^[^–\-–]+[-–]\s*/, '').trim()
+        : (item.title || '');
+
+      const el = document.createElement('div');
+      el.className = 'cal-event';
+      el.innerHTML = `
+        ${imgSrc
+          ? `<img class="cal-event__img" src="${imgSrc}" alt="" loading="lazy" onerror="this.outerHTML='<div class=cal-event__img-placeholder>🏍️</div>'">`
+          : `<div class="cal-event__img-placeholder">🏍️</div>`
+        }
+        <div class="cal-event__body">
+          ${region ? `<span class="cal-event__region">${region}</span>` : ''}
+          <div class="cal-event__title">${cleanTitle}</div>
+          <div class="cal-event__meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${formatDate(item.pubDate)}
+          </div>
+        </div>`;
+
+      // Kliknięcie otwiera link
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(item.link, '_blank', 'noopener');
+      });
+
+      container.appendChild(el);
+    });
+  }
+
+  async function loadRSS() {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const res  = await fetch(API);
+      const data = await res.json();
+      if (data.status === 'ok' && data.items?.length) {
+        renderEvents(data.items.slice(0, 2));
+      } else {
+        throw new Error('no items');
+      }
+    } catch (e) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:8px 0">Nie udało się załadować. <a href="https://gdzienazlot.pl" target="_blank" style="color:var(--g)">Sprawdź stronę →</a></p>';
+    }
+  }
+
+  // Load on first hover
+  card.addEventListener('mouseenter', loadRSS, { once: false });
+  // Also preload after 3s so it's ready
+  setTimeout(loadRSS, 3000);
+})();
+
+
+
 (function () {
   const nums = document.querySelectorAll('.stat__num[data-target]');
   const run = (el, target) => {
