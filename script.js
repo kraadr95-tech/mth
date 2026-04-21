@@ -173,101 +173,129 @@
 
 /* ── KALENDARZ ZLOTÓW — RSS ──────────────────────── */
 (function () {
-  const RSS_URL  = 'https://gdzienazlot.pl/feed/';
-  const API      = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(RSS_URL)}&count=2`;
+  const RSS     = 'https://gdzienazlot.pl/feed/';
+  const PROXY   = 'https://api.allorigins.win/get?url=' + encodeURIComponent(RSS);
   const container = document.getElementById('cal-events');
   const card      = document.getElementById('feature-calendar');
-  if (!container || !card) return;
+  const overlay   = document.getElementById('cal-overlay');
+  if (!container || !card || !overlay) return;
 
   let loaded = false;
+  let autoOpened = false;
 
-  function formatDate(dateStr) {
+  /* ── helpers ── */
+  function formatDate(str) {
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+      return new Date(str).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch { return ''; }
   }
 
   function extractRegion(title) {
-    // Tytuły mają format "Województwo - Nazwa wydarzenia"
-    const m = title.match(/^([^–\-–]+?)[\s]*[-–]/);
+    const m = (title || '').match(/^([^–\-]+?)[\s]*[-–]/);
     return m ? m[1].trim() : '';
   }
 
-  function stripHtml(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+  function getImg(item) {
+    // 1. enclosure
+    const enc = item.querySelector('enclosure');
+    if (enc?.getAttribute('url')) return enc.getAttribute('url');
+    // 2. media:content
+    const mc = item.querySelector('content');
+    if (mc?.getAttribute('url')) return mc.getAttribute('url');
+    // 3. first <img> in description
+    const desc = item.querySelector('description')?.textContent || '';
+    const m = desc.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m) return m[1];
+    return '';
   }
 
+  /* ── render ── */
   function renderEvents(items) {
     container.innerHTML = '';
-    if (!items || items.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:12px 0">Brak wydarzeń</p>';
-      return;
-    }
 
     items.forEach(item => {
-      const region = extractRegion(item.title || '');
-      // Get image: thumbnail from RSS or first <img> in content
-      let imgSrc = item.thumbnail || item.enclosure?.link || '';
-      if (!imgSrc && item.content) {
-        const m = item.content.match(/<img[^>]+src=["']([^"']+)["']/i);
-        if (m) imgSrc = m[1];
-      }
-
-      // Clean title — remove region prefix
+      const title  = item.querySelector('title')?.textContent?.trim() || '';
+      const link   = item.querySelector('link')?.textContent?.trim() || '#';
+      const pubDate= item.querySelector('pubDate')?.textContent || '';
+      const region = extractRegion(title);
+      const imgSrc = getImg(item);
       const cleanTitle = region
-        ? (item.title || '').replace(/^[^–\-–]+[-–]\s*/, '').trim()
-        : (item.title || '');
+        ? title.replace(/^[^–\-]+[-–]\s*/, '').trim()
+        : title;
 
       const el = document.createElement('div');
       el.className = 'cal-event';
       el.innerHTML = `
         ${imgSrc
-          ? `<img class="cal-event__img" src="${imgSrc}" alt="" loading="lazy" onerror="this.outerHTML='<div class=cal-event__img-placeholder>🏍️</div>'">`
-          : `<div class="cal-event__img-placeholder">🏍️</div>`
-        }
+          ? `<img class="cal-event__img" src="${imgSrc}" alt="" loading="lazy"
+               onerror="this.outerHTML='<div class=cal-event__img-placeholder>🏍️</div>'">`
+          : `<div class="cal-event__img-placeholder">🏍️</div>`}
         <div class="cal-event__body">
           ${region ? `<span class="cal-event__region">${region}</span>` : ''}
           <div class="cal-event__title">${cleanTitle}</div>
           <div class="cal-event__meta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            ${formatDate(item.pubDate)}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            ${formatDate(pubDate)}
           </div>
         </div>`;
-
-      // Kliknięcie otwiera link
-      el.style.cursor = 'pointer';
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.open(item.link, '_blank', 'noopener');
-      });
 
       container.appendChild(el);
     });
   }
 
+  /* ── fetch ── */
   async function loadRSS() {
     if (loaded) return;
     loaded = true;
     try {
-      const res  = await fetch(API);
-      const data = await res.json();
-      if (data.status === 'ok' && data.items?.length) {
-        renderEvents(data.items.slice(0, 2));
-      } else {
-        throw new Error('no items');
-      }
+      const res  = await fetch(PROXY, { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.contents) throw new Error('empty');
+
+      const xml   = new DOMParser().parseFromString(json.contents, 'text/xml');
+      const items = Array.from(xml.querySelectorAll('item')).slice(0, 2);
+      if (!items.length) throw new Error('no items');
+
+      renderEvents(items);
     } catch (e) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:8px 0">Nie udało się załadować. <a href="https://gdzienazlot.pl" target="_blank" style="color:var(--g)">Sprawdź stronę →</a></p>';
+      container.innerHTML =
+        '<p style="color:var(--muted);font-size:.82rem;padding:8px 0;text-align:center">⚠️ Nie udało się załadować wydarzeń</p>';
     }
   }
 
-  // Load on first hover
-  card.addEventListener('mouseenter', loadRSS, { once: false });
-  // Also preload after 3s so it's ready
-  setTimeout(loadRSS, 3000);
+  /* ── auto-open on scroll into view ── */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting || autoOpened) return;
+      autoOpened = true;
+      io.unobserve(card);
+
+      // preload RSS data
+      loadRSS();
+
+      // shake hint after short delay
+      setTimeout(() => {
+        card.classList.add('cal-shake');
+        card.addEventListener('animationend', () => card.classList.remove('cal-shake'), { once: true });
+      }, 400);
+
+      // auto-open overlay briefly as a peek
+      setTimeout(() => {
+        card.classList.add('cal-peek');
+        setTimeout(() => card.classList.remove('cal-peek'), 2200);
+      }, 700);
+    });
+  }, { threshold: 0.5 });
+
+  io.observe(card);
+
+  // preload early anyway
+  setTimeout(loadRSS, 2000);
 })();
 
 
