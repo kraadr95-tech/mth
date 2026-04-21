@@ -544,6 +544,15 @@ body {
 }
 .cal-event__meta svg { width: 10px; height: 10px; flex-shrink: 0; }
 
+.cal-event__desc {
+  font-size: .75rem; color: var(--muted2);
+  line-height: 1.4; margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* loading dots */
 .cal-loading {
   display: flex; align-items: center; justify-content: center;
