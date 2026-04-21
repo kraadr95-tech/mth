@@ -179,41 +179,31 @@
   const overlay   = document.getElementById('cal-overlay');
   if (!container || !card || !overlay) return;
 
-  let loaded = false;
-  let autoOpened = false;
+  let loaded  = false;
+  let isOpen  = false;
+  let shaken  = false;
 
   function formatDate(str) {
     if (!str) return '';
     try {
-      return new Date(str).toLocaleDateString('pl-PL', {
-        day: 'numeric', month: 'short', year: 'numeric'
-      });
+      return new Date(str).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch { return ''; }
   }
 
   function renderEvents(events) {
     container.innerHTML = '';
-
     if (!events || events.length === 0) {
-      container.innerHTML =
-        '<p style="color:var(--muted);font-size:.82rem;padding:16px 0;text-align:center">Brak wydarzeń</p>';
+      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:16px 0;text-align:center">Brak wydarzeń</p>';
       return;
     }
-
     events.forEach(ev => {
       const el = document.createElement('div');
       el.className = 'cal-event';
       el.innerHTML = `
-        ${ev.image
-          ? `<img class="cal-event__img" src="${ev.image}" alt="" loading="lazy"
-               onerror="this.outerHTML='<div class=cal-event__img-placeholder>🏍️</div>'">`
-          : `<div class="cal-event__img-placeholder">🏍️</div>`}
         <div class="cal-event__body">
           ${ev.region ? `<span class="cal-event__region">${ev.region}</span>` : ''}
           <div class="cal-event__title">${ev.title || 'Wydarzenie'}</div>
-          ${ev.description
-            ? `<div class="cal-event__desc">${ev.description}</div>`
-            : ''}
+          ${ev.description ? `<div class="cal-event__desc">${ev.description}</div>` : ''}
           <div class="cal-event__meta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="18" rx="2"/>
@@ -221,7 +211,7 @@
               <line x1="8" y1="2" x2="8" y2="6"/>
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            ${formatDate(ev.date)}
+            Dodano: ${formatDate(ev.date)}
           </div>
         </div>`;
       container.appendChild(el);
@@ -237,34 +227,47 @@
       const data = await res.json();
       renderEvents(data.events || []);
     } catch (e) {
-      container.innerHTML =
-        '<p style="color:var(--muted);font-size:.82rem;padding:8px 0;text-align:center">⚠️ Nie udało się załadować</p>';
+      container.innerHTML = '<p style="color:var(--muted);font-size:.82rem;padding:8px 0;text-align:center">⚠️ Nie udało się załadować</p>';
     }
   }
 
-  /* auto-open + shake on scroll into view */
+  /* toggle open/close on click */
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!isOpen) {
+      loadEvents();
+      card.classList.add('cal-open');
+      isOpen = true;
+    } else {
+      card.classList.remove('cal-open');
+      isOpen = false;
+    }
+  });
+
+  /* close when clicking outside */
+  document.addEventListener('click', () => {
+    if (isOpen) {
+      card.classList.remove('cal-open');
+      isOpen = false;
+    }
+  });
+
+  /* shake hint when card scrolls into view — only once */
   const io = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (!entry.isIntersecting || autoOpened) return;
-      autoOpened = true;
+      if (!entry.isIntersecting || shaken) return;
+      shaken = true;
       io.unobserve(card);
-
-      loadEvents();
-
+      loadEvents(); // preload in background
       setTimeout(() => {
         card.classList.add('cal-shake');
         card.addEventListener('animationend', () => card.classList.remove('cal-shake'), { once: true });
-      }, 400);
-
-      setTimeout(() => {
-        card.classList.add('cal-peek');
-        setTimeout(() => card.classList.remove('cal-peek'), 2400);
-      }, 750);
+      }, 500);
     });
   }, { threshold: 0.5 });
 
   io.observe(card);
-  setTimeout(loadEvents, 1500);
 })();
 
 
