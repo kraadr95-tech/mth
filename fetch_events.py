@@ -86,8 +86,11 @@ for i, thread in enumerate(top_threads):
         if msg:
             desc = msg.get("content", "")
             date = msg.get("timestamp", created)
-            print(f"    Content: {desc[:80]}")
+            print(f"    Content: '{desc[:80]}'")
+            print(f"    Attachments: {len(msg.get('attachments', []))}")
+            print(f"    Embeds: {len(msg.get('embeds', []))}")
 
+            # Image from attachments
             for att in msg.get("attachments", []):
                 ct  = att.get("content_type", "")
                 url = att.get("url", "")
@@ -96,13 +99,27 @@ for i, thread in enumerate(top_threads):
                     print(f"    Image (attachment): {img[:60]}")
                     break
 
-            if not img:
-                for emb in msg.get("embeds", []):
-                    candidate = (emb.get("image") or emb.get("thumbnail") or {}).get("url", "")
-                    if candidate:
-                        img = candidate
-                        print(f"    Image (embed): {img[:60]}")
-                        break
+            # Extract from embeds (link previews from gdzienazlot.pl etc.)
+            for emb in msg.get("embeds", []):
+                print(f"    Embed: type={emb.get('type')} title={str(emb.get('title',''))[:40]}")
+
+                # Use embed description as post content if msg content is empty
+                if not desc and emb.get("description"):
+                    desc = emb["description"]
+                    print(f"    Desc from embed: {desc[:60]}")
+
+                # Image from embed image or thumbnail
+                if not img:
+                    for key in ("image", "thumbnail"):
+                        candidate = (emb.get(key) or {}).get("url", "")
+                        if candidate and not candidate.startswith("attachment://"):
+                            img = candidate
+                            print(f"    Image ({key}): {img[:60]}")
+                            break
+
+                # Fallback: embed title as description
+                if not desc and emb.get("title"):
+                    desc = emb["title"]
     else:
         print("    Could not fetch messages")
 
