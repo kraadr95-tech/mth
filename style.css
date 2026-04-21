@@ -572,6 +572,46 @@ body {
 }
 .cal-more:hover { color: var(--g); }
 
+/* shake hint animation */
+@keyframes cal-shake {
+  0%,100% { transform: translateY(-4px) rotate(0deg); }
+  20%      { transform: translateY(-4px) rotate(-1.5deg) scale(1.01); }
+  40%      { transform: translateY(-4px) rotate(1.5deg) scale(1.01); }
+  60%      { transform: translateY(-4px) rotate(-1deg); }
+  80%      { transform: translateY(-4px) rotate(1deg); }
+}
+.cal-shake {
+  animation: cal-shake .6s ease-in-out !important;
+}
+
+/* peek — auto-show overlay briefly */
+.cal-peek .cal-overlay {
+  opacity: 1 !important;
+  pointer-events: none;
+  transform: none !important;
+}
+.cal-peek > .feature__stripe,
+.cal-peek > .feature__header,
+.cal-peek > .feature__title,
+.cal-peek > .feature__text {
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+/* hint dot on card */
+.feature--calendar::after {
+  content: 'NOWOŚCI';
+  position: absolute;
+  bottom: 16px; right: 16px;
+  font-family: var(--f-head);
+  font-size: .58rem; font-weight: 700;
+  letter-spacing: .18em;
+  color: var(--g);
+  opacity: .5;
+  transition: opacity .3s;
+}
+.feature--calendar:hover::after { opacity: 0; }
+
 
 .socials {
   position: relative; z-index: 1;
