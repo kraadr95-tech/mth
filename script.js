@@ -271,9 +271,59 @@
 })();
 
 
-
+/* ── RIDES SLIDER ────────────────────────────────── */
 (function () {
-  const nums = document.querySelectorAll('.stat__num[data-target]');
+  const track  = document.getElementById('rides-track');
+  const prev   = document.getElementById('rides-prev');
+  const next   = document.getElementById('rides-next');
+  const dotsEl = document.getElementById('rides-dots');
+  if (!track) return;
+
+  const slides = track.querySelectorAll('.rides-slide');
+  const total  = slides.length;
+  let current  = 0;
+  let timer;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'rides-dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(idx) {
+    current = (idx + total) % total;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dotsEl.querySelectorAll('.rides-dot').forEach((d, i) =>
+      d.classList.toggle('active', i === current)
+    );
+    resetTimer();
+  }
+
+  function resetTimer() {
+    clearInterval(timer);
+    timer = setInterval(() => goTo(current + 1), 3500);
+  }
+
+  prev.addEventListener('click', (e) => { e.stopPropagation(); goTo(current - 1); });
+  next.addEventListener('click', (e) => { e.stopPropagation(); goTo(current + 1); });
+
+  track.parentElement.addEventListener('mouseenter', () => clearInterval(timer));
+  track.parentElement.addEventListener('mouseleave', resetTimer);
+
+  let startX = 0;
+  track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  track.addEventListener('touchend', e => {
+    const diff = startX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) goTo(current + (diff > 0 ? 1 : -1));
+  });
+
+  resetTimer();
+})();
+
+
+
   const run = (el, target) => {
     const t0 = performance.now();
     const tick = (now) => {
