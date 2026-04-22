@@ -1,5 +1,5 @@
 /* ================================================
-   MOTOHUB POLSKA  ·  script.js
+   MOTOHUB POLSKA  ·  script.js (Poprawiony)
    ================================================ */
 
 /* ── PARTICLES ──────────────────────────────────── */
@@ -120,24 +120,63 @@
   fetchStats();
 })();
 
-/* ── KALENDARZ ZLOTÓW ────────────────────────────── */
+/* ── KALENDARZ ZLOTÓW (POPRAWIONY) ────────────────── */
 (function () {
   const JSON_URL = 'data/events.json';
   const container = document.getElementById('cal-events');
   const card = document.getElementById('feature-calendar');
   if (!container || !card) return;
 
-  card.addEventListener('click', async () => {
-    card.classList.toggle('cal-open');
+  // Funkcja formatująca datę na: 22 kwi 2026
+  function formatDate(str) {
+    if (!str) return '';
+    try {
+      const d = new Date(str);
+      return d.toLocaleDateString('pl-PL', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      }).replace('.', '');
+    } catch (e) { return str; }
+  }
+
+  async function loadEvents() {
     try {
       const res = await fetch(JSON_URL + '?t=' + Date.now());
       const data = await res.json();
+      
+      if (!data.events || data.events.length === 0) {
+        container.innerHTML = '<p style="padding:20px; text-align:center; opacity:0.6; font-size:0.8rem;">Brak nadchodzących wydarzeń</p>';
+        return;
+      }
+
+      // Generujemy HTML z zachowaniem Twoich stylów CSS (region, body, meta)
       container.innerHTML = data.events.map(ev => `
         <div class="cal-event">
-          <div class="cal-event__title">${ev.title}</div>
-          <div class="cal-event__desc">${ev.date}</div>
-        </div>`).join('');
-    } catch (e) { container.innerHTML = '<p>Błąd ładowania</p>'; }
+          <div class="cal-event__body">
+            ${ev.region ? `<span class="cal-event__region">${ev.region.toUpperCase()}</span>` : ''}
+            <div class="cal-event__title">${ev.title}</div>
+            <div class="cal-event__meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px; margin-right:5px; vertical-align:middle;">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Dodano: ${formatDate(ev.date)}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+    } catch (e) {
+      container.innerHTML = '<p style="padding:20px; text-align:center; color:var(--g); font-size:0.8rem;">Błąd ładowania danych</p>';
+    }
+  }
+
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.cal-events')) return;
+    card.classList.toggle('cal-open');
+    if (card.classList.contains('cal-open')) {
+      loadEvents();
+    }
   });
 })();
 
