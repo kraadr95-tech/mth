@@ -1,19 +1,19 @@
 {
-  "updated": "2026-05-08T06:24:04.697014Z",
+  "updated": "2026-05-08T10:56:59.795071Z",
   "events": [
+    {
+      "title": "PIKNIK MOTOCYKLOWY",
+      "region": "Lubelskie",
+      "description": "Radecznica – 9 maja 2026\n https://gdzienazlot.pl/lubelskie/piknik-motocyklowy-6/?utm_source=motohub",
+      "image": "https://gdzienazlot.pl/wp-content/uploads/2026/05/file_138.jpg",
+      "date": "2026-05-08T06:35:46.375000+00:00"
+    },
     {
       "title": "Piknik Rodzinny z okazji startu charytatywnej wyprawy Wild Roads Round 2026",
       "region": "Mazowieckie",
       "description": "W najbliższą niedzielę, 10 maja 2026 roku, przed Urzędem Dzielnicy Wilanów odbędzie się Piknik Rodzinny oraz uroczysty start wyprawy Wild Roads Round …",
       "image": "",
       "date": "2026-05-08T05:48:36.715000+00:00"
-    },
-    {
-      "title": "XIII PIELGRZYMKA MOTOCYKLOWA DOLNEGO ŚLĄSKA DO KRZESZOWA",
-      "region": "Dolnośląskie",
-      "description": "Krzeszów – 10 maja 2026\n https://gdzienazlot.pl/dolnoslaskie/xiii-pielgrzymka-motocyklowa-dolnego-slaska-do-krzeszowa/?utm_source=motohub",
-      "image": "https://gdzienazlot.pl/wp-content/uploads/2026/05/file_134.jpg",
-      "date": "2026-05-06T11:30:48.955000+00:00"
     }
   ]
 }
