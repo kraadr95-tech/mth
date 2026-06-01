@@ -1,19 +1,19 @@
 {
-  "updated": "2026-06-01T05:22:08.896966Z",
+  "updated": "2026-06-01T10:35:13.934209Z",
   "events": [
+    {
+      "title": "XXIV Międzynarodowy Zlot Motocyklowy GRYF PARTY & 25 lat Gryf MC Poland",
+      "region": "Mazowieckie",
+      "description": "Dołącz do międzynarodowego zlotu motocyklowego GRYF PARTY, by świętować 25 lat Gryf MC Poland w Serpelicach. Program wydarzenia Informacje organizacyj…",
+      "image": "https://gdzienazlot.pl/wp-content/uploads/2026/06/cover.jpg",
+      "date": "2026-06-01T08:33:54.542000+00:00"
+    },
     {
       "title": "DZIEŃ DZIECKA",
       "region": "Mazowieckie",
       "description": "Zielonka – 31 maja 2023\n https://gdzienazlot.pl/mazowieckie/dzien-dziecka/?utm_source=motohub",
       "image": "",
       "date": "2026-05-28T12:49:38.743000+00:00"
-    },
-    {
-      "title": "MOTOSERCE – KĘDZIERZYN-KOŹLE",
-      "region": "Opolskie",
-      "description": "Koźle – 7 czerwca 2026\n https://gdzienazlot.pl/opolskie/motoserce-kedzierzyn-kozle/?utm_source=motohub",
-      "image": "https://gdzienazlot.pl/wp-content/uploads/2026/05/file_182.jpg",
-      "date": "2026-05-28T10:05:31.765000+00:00"
     }
   ]
 }
